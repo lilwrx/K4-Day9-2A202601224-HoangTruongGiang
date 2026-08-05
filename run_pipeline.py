@@ -12,9 +12,9 @@ def run():
     db = OlistDB()
     print(f"Data Engine loaded in {time.time() - t0:.2f}s")
 
-    print("\n=== Step 2: Initializing Multi-Agent System (Gemma-9B) ===")
+    print("\n=== Step 2: Initializing Multi-Agent System (Qwen2.5-7B-Instruct) ===")
     logger = TraceLogger()
-    coordinator = CoordinatorAgent(db, model_name="gemma-2-9b-it")
+    coordinator = CoordinatorAgent(db, model_name="Qwen/Qwen2.5-7B-Instruct")
 
     input_dir = r"C:\Users\DELL\Documents\GitHub\K4-Day9-2A202601224-HoangTruongGiang\input"
     output_dir = r"C:\Users\DELL\Documents\GitHub\K4-Day9-2A202601224-HoangTruongGiang\output"
@@ -46,8 +46,8 @@ def run():
 
     print("\n=== Step 4: Writing metadata.json ===")
     metadata = {
-        "model": "gemma-2-9b-it",
-        "parameter_size": "9B",
+        "model": "Qwen/Qwen2.5-7B-Instruct",
+        "parameter_size": "7B",
         "framework": "custom-multi-agent",
         "runtime": "Python 3.11"
     }

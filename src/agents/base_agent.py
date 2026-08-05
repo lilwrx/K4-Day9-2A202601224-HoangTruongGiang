@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class BaseAgent:
-    def __init__(self, name: str, model_name: str = "gemma-2-9b-it"):
+    def __init__(self, name: str, model_name: str = "Qwen/Qwen2.5-7B-Instruct"):
         self.name = name
         self.model_name = model_name
         self.hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
@@ -13,7 +13,7 @@ class BaseAgent:
         if self.hf_token:
             try:
                 from huggingface_hub import InferenceClient
-                self.client = InferenceClient(model="google/gemma-2-9b-it", token=self.hf_token)
+                self.client = InferenceClient(model=self.model_name, token=self.hf_token)
             except Exception as e:
                 self.client = None
 
