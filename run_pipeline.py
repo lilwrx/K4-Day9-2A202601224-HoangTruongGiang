@@ -68,15 +68,15 @@ def run():
         with open(trace_path, "r", encoding="utf-8") as sf, open(root_trace_path, "w", encoding="utf-8") as df:
             df.write(sf.read())
 
-    print("\n=== Step 5: Packaging output.zip ===")
+    print("\n=== Step 5: Packaging output.zip (Structure: output/EC_001.json ... output/EC_050.json) ===")
     zip_path = r"C:\Users\DELL\Documents\GitHub\K4-Day9-2A202601224-HoangTruongGiang\output.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(output_dir):
-            for file in files:
-                if file.endswith(".json") and file.startswith("EC_"):
-                    file_path = os.path.join(root, file)
-                    arcname = file  # Store directly inside zip root as EC_xxx.json
-                    zipf.write(file_path, arcname)
+        for i in range(1, 51):
+            filename = f"EC_{i:03d}.json"
+            file_path = os.path.join(output_dir, filename)
+            if os.path.exists(file_path):
+                arcname = f"output/{filename}"
+                zipf.write(file_path, arcname)
 
     print(f"Created zip artifact at: {zip_path}")
     print("=== Pipeline Complete! ===")

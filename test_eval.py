@@ -94,7 +94,8 @@ def run_tests():
             if len(names) != 50:
                 errors.append(f"Zip file contains {len(names)} files, expected 50.")
             for fn in names:
-                if not (fn.startswith("EC_") and fn.endswith(".json")):
+                base_fn = os.path.basename(fn)
+                if not (base_fn.startswith("EC_") and base_fn.endswith(".json")):
                     errors.append(f"Unexpected file in zip: {fn}")
         print(f"  -> PASSED: output.zip contains exactly 50 valid JSON files.")
 
