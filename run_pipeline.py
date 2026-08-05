@@ -46,8 +46,8 @@ def run():
 
     print("\n=== Step 4: Writing metadata.json ===")
     metadata = {
-        "model": "Qwen/Qwen2.5-7B-Instruct",
-        "parameter_size": "7B",
+        "model": "gemma-2-9b-it",
+        "parameter_size": "9B",
         "framework": "custom-multi-agent",
         "runtime": "Python 3.11"
     }
