@@ -1,0 +1,15 @@
+{
+  "model_name": "llama-3.1-8b-instant",
+  "parameter_size": "8B",
+  "framework": "Custom Multi-Agent A2A Framework / Python 3.11",
+  "active_provider": "groq",
+  "llm_api_available": true,
+  "supported_apis": {
+    "groq": "llama-3.1-8b-instant (via GROQ_API_KEY)",
+    "openrouter": "qwen/qwen-2.5-7b-instruct / qwen3-8b (via OPENROUTER_API_KEY)",
+    "huggingface": "Qwen/Qwen2.5-7B-Instruct (via HF_TOKEN / HUGGINGFACE_API_KEY)"
+  },
+  "runtime": "Python Multi-Agent Handoff [groq]",
+  "total_cases_processed": 50,
+  "execution_time_seconds": 275.09
+}
