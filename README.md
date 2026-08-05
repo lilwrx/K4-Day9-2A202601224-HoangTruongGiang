@@ -65,14 +65,14 @@ Hệ thống dùng `claimed_order_id` để truy xuất và join các CSV. Khôn
 
 Áp dụng `EC_POLICY_V2` theo thứ tự ưu tiên dưới đây. Mọi phép tính tiền và số giờ được làm tròn 2 chữ số thập phân.
 
-| Primary issue             | Điều kiện                                                                          | Responsible party                           |       Refund | Action                        |
-| ------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------- | -----------: | ----------------------------- |
-| `canceled_order_paid`     | `order_status = canceled` và tổng payment > 0                                      | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
-| `unavailable_order_paid`  | `order_status = unavailable` và tổng payment > 0                                   | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
-| `late_delivery_seller`    | Giao sau estimated date và carrier nhận hàng sau ít nhất một `shipping_limit_date` | `seller` / các seller vi phạm               | Tổng freight | `refund_freight`              |
-| `late_delivery_logistics` | Giao sau estimated date và không seller nào bàn giao muộn                          | `logistics_provider` / `LOGISTICS_PROVIDER` | Tổng freight | `refund_freight`              |
-| `valid_split_payment`     | Có từ 2 payment row; tổng payment khớp tổng item + freight trong sai số 0.10 BRL   | Không có                                    |            0 | `explain_valid_split_payment` |
-| `unsupported_late_claim`  | Đơn giao không muộn hơn estimated date và payment khớp                             | Không có                                    |            0 | `reject_late_refund`          |
+| Primary issue               | Điều kiện                                                                              | Responsible party                               |        Refund | Action                          |
+| --------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------: | ------------------------------- |
+| `canceled_order_paid`     | `order_status = canceled` và tổng payment > 0                                         | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
+| `unavailable_order_paid`  | `order_status = unavailable` và tổng payment > 0                                      | `platform` / `OLIST_PLATFORM`               | Tổng payment | `issue_full_refund`           |
+| `late_delivery_seller`    | Giao sau estimated date và carrier nhận hàng sau ít nhất một`shipping_limit_date` | `seller` / các seller vi phạm               | Tổng freight | `refund_freight`              |
+| `late_delivery_logistics` | Giao sau estimated date và không seller nào bàn giao muộn                            | `logistics_provider` / `LOGISTICS_PROVIDER` | Tổng freight | `refund_freight`              |
+| `valid_split_payment`     | Có từ 2 payment row; tổng payment khớp tổng item + freight trong sai số 0.10 BRL    | Không có                                      |             0 | `explain_valid_split_payment` |
+| `unsupported_late_claim`  | Đơn giao không muộn hơn estimated date và payment khớp                             | Không có                                      |             0 | `reject_late_refund`          |
 
 Secondary issues được thêm theo đúng thứ tự sau khi thỏa điều kiện:
 
@@ -237,15 +237,15 @@ Nén folder `output/` thành file zip. Zip phải chứa đúng 50 JSON từ `EC
 
 Điểm mỗi case là tổng có trọng số:
 
-| Thành phần                      | Trọng số |
-| ------------------------------- | -------: |
-| Primary và secondary issues     |      15% |
-| Affected entities               |      15% |
-| Customer và product context     |      15% |
-| Delivery analysis               |      15% |
-| Payment reconciliation          |      15% |
-| Root cause và evidence          |      15% |
-| Financial resolution và actions |      10% |
+| Thành phần                     | Trọng số |
+| -------------------------------- | ---------: |
+| Primary và secondary issues     |        15% |
+| Affected entities                |        15% |
+| Customer và product context     |        15% |
+| Delivery analysis                |        15% |
+| Payment reconciliation           |        15% |
+| Root cause và evidence          |        15% |
+| Financial resolution và actions |        10% |
 
 Điểm cuối là trung bình của 50 case. Case bị hard gate nhận 0 điểm.
 
@@ -258,11 +258,11 @@ Trong repo phải có thêm:
 
 &rarr; Làm chung trên 1 repo nhóm, báo cáo cá nhân để chung trong repo và nộp repo nhóm này, giữ nguyên tên repo không đổi
 
-| Thời gian   | Checkpoint   | Nội dung             |
-| ----------- | ------------ | -------------------- |
+| Thời gian  | Checkpoint   | Nội dung                 |
+| ----------- | ------------ | ------------------------- |
 | 13h-13h30   | Checkpoint 1 | Công bố input đề bài |
-| 13h30-17h30 | Checkpoint 2 | Competition          |
-| 17h30-18h   | Checkpoint 3 | Chốt leaderboard     |
+| 13h30-17h30 | Checkpoint 2 | Competition               |
+| 17h30-18h   | Checkpoint 3 | Chốt leaderboard         |
 
 ## 9. Lưu ý
 

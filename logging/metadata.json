@@ -1,0 +1,50 @@
+{
+  "run": {
+    "date": "2026-08-05",
+    "runtime": "Python 3.12.7",
+    "framework": {
+      "data_agent": "langchain 0.2 + langchain-openai (tool-calling agent, optional NL path only)",
+      "policy_agent": "pure Python (no agent framework)",
+      "execution_agent": "pure Python (no agent framework)",
+      "orchestrator": "pure Python (no agent framework)"
+    },
+    "cases_processed": 50,
+    "input_dir": "input/",
+    "output_dir": "output/",
+    "trace_file": "logging/trace.jsonl"
+  },
+  "agents": [
+    {
+      "name": "data_agent",
+      "role": "Fetches and joins rows from data/*.csv for a claimed_order_id. No LLM in this path (DataAgent.investigate).",
+      "model": "none (deterministic pandas joins)",
+      "optional_llm_path": {
+        "description": "DataAgent.chat() answers free-text questions via LangChain tool-calling; not used by the deterministic orchestrator run that produced output/.",
+        "model": "gpt-4o-mini",
+        "provider": "OpenAI",
+        "parameter_count": "undisclosed by OpenAI; not confirmed <=10B",
+        "note": "Chosen for its OpenAI-compatible tool-calling support during development; exceeds the assignment's 10B-parameter cap and was accepted as a known deviation for this optional, unused-in-scoring path only."
+      }
+    },
+    {
+      "name": "policy_agent",
+      "role": "Applies EC_POLICY_V2 to a data_agent bundle: primary/secondary issue, root cause, refund amount, resolution_actions. Deterministic rule engine, not an LLM call.",
+      "model": "none (rule-based, see policy_agent/rules.py)"
+    },
+    {
+      "name": "execution_agent",
+      "role": "Simulates performing policy_agent's resolution_actions, split by domain: refund_agent (issue/reject/verify refunds), payment_agent (split-payment explanation/verification), logistics_agent (seller/carrier review, multi-seller coordination). Olist has no refund ledger to write to, so each action produces an auditable log entry rather than a real state mutation.",
+      "model": "none (rule-based dispatch, see execution_agent/router.py)"
+    },
+    {
+      "name": "orchestrator",
+      "role": "Routing agent: sequences data_agent -> policy_agent -> execution_agent -> verifier per case, writes output/EC_*.json, and logs every handoff to logging/trace.jsonl.",
+      "model": "none (deterministic sequencing, see orchestrator/pipeline.py)"
+    },
+    {
+      "name": "verifier",
+      "role": "Pre-write gate inside orchestrator/verifier.py: checks array-length limits, evidence_id formats, confidence range, and case_status/refund consistency before a case is written to output/.",
+      "model": "none (rule-based validation)"
+    }
+  ]
+}
