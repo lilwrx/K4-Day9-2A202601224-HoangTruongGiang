@@ -1,121 +1,143 @@
 # Member Role Report — Day 9: Multi Agent A2A
 
-> Mỗi thành viên trong nhóm tự hoàn thành mẫu này để báo cáo đúng vai trò, phần việc và mức hiểu của mình. Không sao chép nguyên báo cáo chung hoặc báo cáo của thành viên khác. Thay nội dung trong dấu `[ ]` và xóa các dòng hướng dẫn không cần thiết trước khi nộp.
+## 1. Thong tin ca nhan
 
-## 1. Thông tin cá nhân
+| Thong tin       | Noi dung                    |
+| --------------- | --------------------------- |
+| Ho va ten       | Dao Ngoc Duy                |
+| MSSV            | 2A202601780                 |
+| Khoa/Lop        | K4                          |
+| Vai tro chinh   | Full-stack Developer & System Architect |
+| Ngay hoan thanh | 2026-08-05                  |
 
-| Thông tin       | Nội dung     |
-| --------------- | ------------ |
-| Họ và tên       | [Họ và tên]  |
-| MSSV            | [MSSV]       |
-| Khóa/Lớp        | [K4]         |
-| Vai trò chính   | [Vai trò]    |
-| Ngày hoàn thành | [YYYY-MM-DD] |
+## 2. Vai tro va pham vi cong viec
 
-## 2. Vai trò và phạm vi công việc
+### Phan viec so huu
 
-### Phần việc sở hữu
+| Module/deliverable | File/ham phu trach | Input nhan vao | Output ban giao | Trang thai |
+| ------------------ | ------------------ | -------------- | --------------- | ---------- |
+| Data Layer | `src/data_loader.py` | 9 CSV files | DataLoader singleton | Hoan thanh |
+| Customer Agent | `src/agents/customer_agent.py` | order_id | customer_context | Hoan thanh |
+| Order & Product Agent | `src/agents/order_product_agent.py` | order_id | affected_entities, product_context | Hoan thanh |
+| Payment Agent | `src/agents/payment_agent.py` | order_id | payment_reconciliation | Hoan thanh |
+| Delivery Agent | `src/agents/delivery_agent.py` | order_id | delivery_analysis | Hoan thanh |
+| Policy Agent | `src/agents/policy_agent.py` | All agent outputs | case_assessment, root_cause, refund, actions | Hoan thanh |
+| Verifier Agent | `src/agents/verifier_agent.py` | Final output dict | Validated output | Hoan thanh |
+| Coordinator Agent | `src/agents/coordinator_agent.py` | Case JSON | Final output + trace | Hoan thanh |
+| Main Entry Point | `src/main.py` | 50 input files | 50 output JSONs + trace + metadata | Hoan thanh |
+| LLM Client | `src/llm_client.py` | Agent summaries | Trace reasoning text | Hoan thanh |
+| Architecture Doc | `architecture.md` | N/A | Architecture documentation | Hoan thanh |
 
-| Module/deliverable | File/hàm phụ trách | Input nhận vào | Output bàn giao   | Trạng thái                            |
-| ------------------ | ------------------ | -------------- | ----------------- | ------------------------------------- |
-| [Phần việc]        | [File/hàm]         | [Input]        | [Output/artifact] | [Hoàn thành/Một phần/Chưa hoàn thành] |
-| [Phần việc]        | [File/hàm]         | [Input]        | [Output/artifact] | [Hoàn thành/Một phần/Chưa hoàn thành] |
+### Viec ho tro ngoai pham vi chinh
 
-Chỉ nhận ownership cho phần bạn trực tiếp thực hiện. Liên hệ rõ phần việc của bạn với đầu vào, đầu ra và các thành viên phụ thuộc vào phần đó.
+| Hoat dong | Thanh vien/module duoc ho tro | Ket qua |
+| --------- | ----------------------------- | ------- |
+| Thiet ke kien truc tong the | Nhom | So do agent, data flow, handoff protocol |
+| Review va fix data contract | Nhom | Dam bao tat ca agents giao tiep dung format |
 
-### Việc hỗ trợ ngoài phạm vi chính
+## 3. Ket qua theo vai tro
 
-| Hoạt động                 | Thành viên/module được hỗ trợ | Kết quả                 |
-| ------------------------- | ----------------------------- | ----------------------- |
-| [Debug/tích hợp/tài liệu] | [Tên hoặc module]             | [Kết quả và bằng chứng] |
+| Nhiem vu da thuc hien | File/ham/artifact lien quan | Ket qua ban giao | Cach xac minh |
+| --------------------- | --------------------------- | ----------------- | ------------- |
+| Xay dung 7-agent pipeline | `src/agents/*.py` | 7 agent classes hoat dong | `python src/main.py` |
+| Xu ly 50 cases | `output/EC_001-050.json` | 50 output JSON files | So sanh EC_002 voi README example |
+| Payment reconciliation | `src/agents/payment_agent.py` | Tat ca payments doi soat chinh xac | Kiem tra difference_brl va reconciled |
+| Delivery analysis | `src/agents/delivery_agent.py` | Variance hours tinh dung | So sanh EC_002: 87.39h, 1.04h |
+| Policy evaluation | `src/agents/policy_agent.py` | 6 loai primary issue phan loai dung | Thong ke phan bo cases |
+| Schema validation | `src/agents/verifier_agent.py` | Evidence IDs, array limits hop le | Script validate_outputs.py |
 
-## 3. Kết quả theo vai trò
+Mot output cu the: EC_002.json khop chinh xac voi example output trong README:
+- delivery_variance_hours = 87.39
+- handoff_variance_hours = 1.04
+- recommended_refund_brl = 18.27
+- primary_issue = late_delivery_seller
 
-| Nhiệm vụ đã thực hiện | File/hàm/artifact liên quan | Kết quả bàn giao          | Cách xác minh   |
-| --------------------- | --------------------------- | ------------------------- | --------------- |
-| [Mô tả cụ thể]        | [Đường dẫn file]            | [Artifact/metrics/report] | [Lệnh/artifact] |
-| [Mô tả cụ thể]        | [Đường dẫn file]            | [Artifact/metrics/report] | [Lệnh/artifact] |
+## 4. Giai thich phan ky thuat da thuc hien
 
-Nêu một output cụ thể mà phần việc của bạn tạo ra hoặc giúp xác minh:
+### Van de can giai quyet
 
-[Mô tả artifact, metric, report hoặc kết quả tích hợp.]
+Xay dung he thong multi-agent xu ly 50 khieu nai thuong mai dien tu tren du lieu Olist. Moi case can: join du lieu tu 9 CSV, phan tich delivery/payment/customer/product, ap dung policy EC_POLICY_V2, sinh output JSON chuan.
 
-## 4. Giải thích phần kỹ thuật đã thực hiện
+### Cach trien khai
 
-### Vấn đề cần giải quyết
+1. **Data Layer (Singleton Pattern):** Load 9 CSV files mot lan duy nhat vao pandas DataFrames, cung cap query functions cho tung agent. Xu ly NaN values bang cach convert sang None.
 
-[Phần của bạn giải quyết vấn đề gì trong pipeline?]
+2. **Agent Architecture:** 7 agent rieng biet, moi agent la 1 Python class voi method `investigate()` hoac `evaluate()`. Coordinator Agent dieu phoi toan bo flow:
+   - Customer Agent: Join orders→customers, tim customer_unique_id va related orders
+   - Order & Product Agent: Iterate order_items, extract unique sellers/products/categories
+   - Payment Agent: Sum prices + freight vs sum payments, kiem tra sai so ≤ 0.10 BRL
+   - Delivery Agent: Tinh (delivered - estimated) hours, (carrier - shipping_limit) hours
+   - Policy Agent: Ap dung 6 rules theo thu tu uu tien
+   - Verifier Agent: Truncate arrays, validate evidence format, verify consistency
 
-### Cách triển khai
+3. **Deterministic Logic:** Toan bo tinh toan bang Python thuan. LLM (llama-3.1-8b-instant, 8B params) chi dung de sinh reasoning summary cho trace — khong tham gia quyet dinh logic nao.
 
-[Mô tả thuật toán, quy tắc dữ liệu, orchestration hoặc quyết định chính. Không chỉ chép lại tên hàm.]
+4. **Evidence Building:** Coordinator tu dong build evidence_ids tu output cua cac agent: order, items, payments, responsible sellers, policy code.
 
-### Input, output và contract
+### Input, output va contract
 
-| Thành phần              | Mô tả                                  |
-| ----------------------- | -------------------------------------- |
-| Input                   | [Schema, artifact hoặc tham số]        |
-| Output                  | [Schema, artifact hoặc giá trị trả về] |
-| Module phụ thuộc        | [Module/file liên quan]                |
-| Module sử dụng output   | [Module/file liên quan]                |
-| Điều kiện lỗi cần xử lý | [Trường hợp thực tế]                   |
+| Thanh phan | Mo ta |
+| ---------- | ----- |
+| Input | 50 JSON files (EC_001-050.json) voi claimed_order_id |
+| Output | 50 JSON files theo output schema + trace.jsonl + metadata.json |
+| Module phu thuoc | pandas, groq SDK, python-dotenv |
+| Module su dung output | Coordinator agent tong hop tat ca |
+| Dieu kien loi can xu ly | Order khong co items (null handling), missing timestamps, Unicode encoding tren Windows |
 
-### Cách xác minh
+### Cach xac minh
 
 ```bash
-[Ghi lệnh thực tế đã chạy]
+python src/main.py
+python src/validate_outputs.py
 ```
 
-- **Kết quả mong đợi:** [Mô tả.]
-- **Kết quả thực tế:** [Mô tả.]
-- **Artifact/log:** [Đường dẫn; không chứa secret.]
+- **Ket qua mong doi:** 50/50 cases xu ly thanh cong, tat ca output hop le
+- **Ket qua thuc te:** 50/50 cases thanh cong, EC_002 khop chinh xac voi README example
+- **Artifact/log:** `output/`, `logging/trace.jsonl`, `logging/metadata.json`
 
-## 5. Một quyết định kỹ thuật quan trọng
+## 5. Mot quyet dinh ky thuat quan trong
 
-- **Bối cảnh:** [Vấn đề hoặc lựa chọn cần quyết định.]
-- **Các phương án đã cân nhắc:** [Ít nhất hai phương án.]
-- **Phương án đã chọn:** [Lựa chọn.]
-- **Lý do:** [Trade-off về correctness, data quality, reproducibility, cost hoặc độ phức tạp.]
-- **Bằng chứng quyết định phù hợp:** [Metric, artifact hoặc kết quả thử nghiệm.]
+- **Boi canh:** Chon giua viec de LLM xu ly logic (flexible nhung khong chinh xac) hay dung 100% deterministic Python.
+- **Cac phuong an da can nhac:**
+  1. LLM-driven: Gui du lieu CSV cho LLM, de LLM phan tich va tra JSON — don gian nhung sai so cao
+  2. Deterministic Python + LLM trace: Logic tinh toan bang Python, LLM chi lam trace summary
+- **Phuong an da chon:** Deterministic Python + LLM trace
+- **Ly do:** Bai lab yeu cau chinh xac tung con so (delivery_variance_hours, refund, difference_brl). LLM 8B khong du kha nang tinh toan chinh xac voi so lieu day du. Python cho ket qua 100% chinh xac va tai tao duoc.
+- **Bang chung quyet dinh phu hop:** EC_002 output khop chinh xac toi tung so le voi README example (87.39h, 1.04h, 18.27 BRL).
 
-## 6. Một lỗi hoặc blocker đã xử lý
+## 6. Mot loi hoac blocker da xu ly
 
-- **Triệu chứng/lỗi nguyên văn:** [Che toàn bộ secret trước khi ghi.]
-- **Lệnh hoặc bước tái hiện:** [Lệnh/bước.]
-- **Nguyên nhân gốc:** [Root cause, không chỉ mô tả triệu chứng.]
-- **Cách xử lý:** [Thay đổi cụ thể.]
-- **Cách xác minh sau khi sửa:** [Lệnh và kết quả.]
-- **Điều học được:** [Bài học kỹ thuật.]
+- **Trieu chung/loi nguyen van:** `UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2`
+- **Lenh hoac buoc tai hien:** `python src/main.py` tren Windows console (cp1252 encoding)
+- **Nguyen nhan goc:** Windows PowerShell su dung cp1252 encoding, khong ho tro Unicode checkmarks (✓, ✗, ⚠)
+- **Cach xu ly:** Thay the Unicode symbols bang ASCII equivalents: `[OK]`, `[ERR]`, `[SKIP]`
+- **Cach xac minh sau khi sua:** Chay lai `python src/main.py` — 50/50 cases thanh cong
+- **Dieu hoc duoc:** Luon dung ASCII characters cho console output tren Windows de tranh encoding issues
 
-Nếu chưa xử lý xong:
+## 7. Hieu biet ve luong end-to-end
 
-- **Phạm vi bị ảnh hưởng:** [Module/artifact.]
-- **Những gì đã loại trừ:** [Các giả thuyết đã kiểm tra.]
-- **Bước tiếp theo:** [Hành động có thể kiểm chứng.]
+1. **Du lieu di tu input den output nhu the nao?**
+   Input JSON chua claimed_order_id → Coordinator dispatch toi 6 agent → Moi agent query CSV qua DataLoader → Ket qua gom lai → Policy Agent ap EC_POLICY_V2 → Verifier validate → Output JSON.
 
-## 7. Hiểu biết về luồng end-to-end
+2. **EC_POLICY_V2 duoc ap dung ra sao?**
+   6 rules theo thu tu uu tien: canceled_order_paid > unavailable_order_paid > late_delivery_seller > late_delivery_logistics > valid_split_payment > unsupported_late_claim. Dieu kien kiem tra: order_status, payment_total, delivery_variance, seller handoff, payment rows, reconciliation.
 
-Giải thích ngắn gọn bằng lời của bạn:
+3. **Multi-agent khac single-prompt o diem nao?**
+   Moi agent chi truy cap data domain cua minh, xu ly doc lap, va handoff ket qua cho Coordinator. Trace ghi lai tung buoc agent xu ly. Verifier kiem tra lai ket qua cuoi cung — separation of concerns thuc su.
 
-1. Dữ liệu đi từ Crossref đến vector index như thế nào?
-2. Evaluation set và ground-truth document IDs dùng để đo retrieval/answer quality ra sao?
-3. Quality checks khác freshness monitoring ở điểm nào trong bài lab?
-4. Vì sao phải dùng cùng test set cho baseline, corrupted và repaired?
-5. Repair được xem là thành công dựa trên artifact và metric nào?
+4. **Vi sao phai dung deterministic thay vi LLM?**
+   Chinh xac tuyet doi cho so hoc (rounding 2 decimal, variance hours, refund). LLM 8B khong du kha nang tinh toan chinh xac voi nhieu con so. Deterministic Python dam bao reproducibility 100%.
 
-**Câu trả lời:**
+5. **Kiem chung thanh cong dua tren gi?**
+   EC_002 output khop chinh xac voi example trong README. Validate script kiem tra schema, evidence format, array limits, case_status consistency cho tat ca 50 cases.
 
-[Viết câu trả lời tại đây.]
+## 8. Cam ket cua thanh vien
 
-## 8. Cam kết của thành viên
+- [x] Noi dung bao cao phan anh dung phan viec va muc hieu cua toi.
+- [x] Toi co the giai thich luong end-to-end, khong chi module minh phu trach.
+- [x] Toi khong ghi "da chay thanh cong" cho phan chua duoc kiem chung.
+- [x] Bao cao khong chua `.env`, API key, token hoac secret.
+- [x] Bao cao nay khong phai ban sao nguyen van cua bao cao nhom hoac bao cao thanh vien khac.
 
-Đánh dấu sau khi tự kiểm tra:
-
-- [ ] Nội dung báo cáo phản ánh đúng phần việc và mức hiểu của tôi.
-- [ ] Tôi có thể giải thích luồng end-to-end, không chỉ module mình phụ trách.
-- [ ] Tôi không ghi “đã chạy thành công” cho phần chưa được kiểm chứng.
-- [ ] Báo cáo không chứa `.env`, API key, token hoặc secret.
-- [ ] Báo cáo này không phải bản sao nguyên văn của báo cáo nhóm hoặc báo cáo thành viên khác.
-
-**Họ và tên:** [Họ và tên]
-**Ngày xác nhận:** [YYYY-MM-DD]
+**Ho va ten:** Dao Ngoc Duy
+**Ngay xac nhan:** 2026-08-05

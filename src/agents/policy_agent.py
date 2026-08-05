@@ -1,5 +1,5 @@
 class PolicyAgent:
-    """Applies EC_POLICY_V2 business rules deterministically."""
+    """Applies EC_POLICY_V2 business rules deterministically according to exact specification."""
 
     def evaluate(self, order_status, order_product_data, payment_data, delivery_data, customer_data) -> dict:
         # Extract data from agent outputs
@@ -39,7 +39,7 @@ class PolicyAgent:
         else:
             primary_issue = 'unsupported_late_claim'
 
-        # --- Secondary issues (in order) ---
+        # --- Secondary issues (in exact order) ---
         secondary_issues = []
         if num_item_rows >= 2:
             secondary_issues.append('multi_item_order')
@@ -95,12 +95,12 @@ class PolicyAgent:
         }
         actions = [action_map[primary_issue]]
 
-        # Additional actions in order
+        # Additional actions in exact priority order
         if len(late_handoff_sellers) > 0:
             actions.append('review_seller_handoff')
         if primary_issue == 'late_delivery_logistics':
             actions.append('review_carrier_delay')
-        if refund_brl > 0:
+        if primary_issue in ('canceled_order_paid', 'unavailable_order_paid'):
             actions.append('verify_refund_completion')
         if 'multi_seller_order' in secondary_issues:
             actions.append('coordinate_multi_seller_case')

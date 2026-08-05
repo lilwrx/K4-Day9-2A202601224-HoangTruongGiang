@@ -7,11 +7,6 @@ from src.agents.delivery_agent import DeliveryAgent
 from src.agents.policy_agent import PolicyAgent
 from src.agents.verifier_agent import VerifierAgent
 
-try:
-    from src.llm_client import generate_agent_reasoning
-except Exception:
-    generate_agent_reasoning = None
-
 
 class CoordinatorAgent:
     """Orchestrates the full investigation pipeline for a single case."""
@@ -24,14 +19,6 @@ class CoordinatorAgent:
         self.delivery_agent = DeliveryAgent()
         self.policy_agent = PolicyAgent()
         self.verifier_agent = VerifierAgent()
-
-    def _make_summary(self, agent_name, task, data_summary, conclusion):
-        if generate_agent_reasoning:
-            try:
-                return generate_agent_reasoning(agent_name, task, data_summary, conclusion)
-            except Exception:
-                pass
-        return f"{agent_name}: {conclusion}"
 
     def process_case(self, case_dict: dict) -> tuple:
         case_id = case_dict['case_id']
@@ -63,11 +50,9 @@ class CoordinatorAgent:
         evidence_ids.append(f"order:{order_id}")
 
         for item_id in order_product_data.get('item_ids', []):
-            # item_id is already in format "order_id:item_num"
             evidence_ids.append(f"item:{item_id}")
 
         for payment_id in payment_data.get('payment_ids', []):
-            # payment_id is already in format "order_id:sequential"
             evidence_ids.append(f"payment:{payment_id}")
 
         # Add seller evidence only for responsible sellers
@@ -108,34 +93,32 @@ class CoordinatorAgent:
         # Step 9: Verify
         verified_output = self.verifier_agent.verify(final_output)
 
-        # Step 10: Build trace entry
+        # Step 10: Build trace entry (Instant structured summaries)
+        num_items = len(order_product_data.get('item_ids', []))
+        num_sellers = len(order_product_data.get('seller_ids', []))
+        pmt_recon = payment_data.get('payment_reconciliation', {})
+        del_var = delivery_data.get('delivery_variance_hours')
+        late_sellers = len(delivery_data.get('late_handoff_seller_ids', []))
+        primary = policy_result['case_assessment']['primary_issue']
+        refund = policy_result['financial_resolution']['recommended_refund_brl']
+
         trace_entry = {
             'case_id': case_id,
             'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'agents': [
                 {'agent': 'coordinator', 'action': 'dispatch', 'status': 'complete'},
                 {'agent': 'customer_agent', 'action': 'investigate', 'status': 'complete',
-                 'output_summary': self._make_summary('customer_agent', 'investigate customer',
-                    f"customer_unique_id={customer_data.get('customer_unique_id')}, related_orders={len(customer_data.get('related_order_ids', []))}",
-                    f"Found customer with {len(customer_data.get('related_order_ids', []))} related orders")},
+                 'output_summary': f"Identified customer {customer_data.get('customer_unique_id')} with {len(customer_data.get('related_order_ids', []))} related orders."},
                 {'agent': 'order_product_agent', 'action': 'investigate', 'status': 'complete',
-                 'output_summary': self._make_summary('order_product_agent', 'investigate order items',
-                    f"items={len(order_product_data.get('item_ids', []))}, sellers={len(order_product_data.get('seller_ids', []))}",
-                    f"Found {len(order_product_data.get('item_ids', []))} items from {len(order_product_data.get('seller_ids', []))} sellers")},
+                 'output_summary': f"Retrieved {num_items} items across {num_sellers} sellers."},
                 {'agent': 'payment_agent', 'action': 'investigate', 'status': 'complete',
-                 'output_summary': self._make_summary('payment_agent', 'reconcile payments',
-                    f"payment_total={payment_data.get('payment_reconciliation', {}).get('payment_total_brl')}, reconciled={payment_data.get('payment_reconciliation', {}).get('reconciled')}",
-                    f"Payment total={payment_data.get('payment_reconciliation', {}).get('payment_total_brl')} BRL, reconciled={payment_data.get('payment_reconciliation', {}).get('reconciled')}")},
+                 'output_summary': f"Payment total: {pmt_recon.get('payment_total_brl')} BRL, reconciled={pmt_recon.get('reconciled')}."},
                 {'agent': 'delivery_agent', 'action': 'investigate', 'status': 'complete',
-                 'output_summary': self._make_summary('delivery_agent', 'analyze delivery',
-                    f"variance_hours={delivery_data.get('delivery_variance_hours')}, late_sellers={len(delivery_data.get('late_handoff_seller_ids', []))}",
-                    f"Delivery variance={delivery_data.get('delivery_variance_hours')}h, {len(delivery_data.get('late_handoff_seller_ids', []))} late sellers")},
+                 'output_summary': f"Delivery variance: {del_var}h, late seller handoffs: {late_sellers}."},
                 {'agent': 'policy_agent', 'action': 'evaluate', 'status': 'complete',
-                 'output_summary': self._make_summary('policy_agent', 'apply EC_POLICY_V2',
-                    f"primary={policy_result['case_assessment']['primary_issue']}, status={policy_result['case_assessment']['case_status']}",
-                    f"Primary issue: {policy_result['case_assessment']['primary_issue']}, refund={policy_result['financial_resolution']['recommended_refund_brl']} BRL")},
+                 'output_summary': f"Evaluated EC_POLICY_V2 -> Primary issue: {primary}, refund: {refund} BRL."},
                 {'agent': 'verifier_agent', 'action': 'verify', 'status': 'complete',
-                 'output_summary': 'Output verified: schema compliant, evidence IDs valid, array limits enforced'},
+                 'output_summary': 'Output verified: schema compliant, evidence IDs valid, array limits enforced.'},
             ],
             'result': {
                 'primary_issue': verified_output['case_assessment']['primary_issue'],

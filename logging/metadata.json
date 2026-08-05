@@ -6,8 +6,8 @@
     "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
     "total_cases": 50,
     "processed_cases": 50,
-    "total_time_seconds": 600.62,
-    "avg_time_per_case_seconds": 12.01
+    "total_time_seconds": 3.78,
+    "avg_time_per_case_seconds": 0.08
   },
   "agents": [
     {
@@ -39,5 +39,5 @@
       "role": "schema & data validation"
     }
   ],
-  "timestamp": "2026-08-05T09:05:45.145709+00:00"
+  "timestamp": "2026-08-05T09:30:39.149147+00:00"
 }
