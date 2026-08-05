@@ -1,0 +1,43 @@
+{
+  "model": "llama-3.1-8b-instant",
+  "parameter_size": "8B",
+  "framework": "python+pandas+groq",
+  "runtime": {
+    "python_version": "3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]",
+    "total_cases": 50,
+    "processed_cases": 50,
+    "total_time_seconds": 600.62,
+    "avg_time_per_case_seconds": 12.01
+  },
+  "agents": [
+    {
+      "name": "coordinator_agent",
+      "role": "orchestration"
+    },
+    {
+      "name": "customer_agent",
+      "role": "customer identity & history"
+    },
+    {
+      "name": "order_product_agent",
+      "role": "order, items, sellers, products"
+    },
+    {
+      "name": "payment_agent",
+      "role": "payment reconciliation"
+    },
+    {
+      "name": "delivery_agent",
+      "role": "delivery & handoff analysis"
+    },
+    {
+      "name": "policy_agent",
+      "role": "EC_POLICY_V2 evaluation"
+    },
+    {
+      "name": "verifier_agent",
+      "role": "schema & data validation"
+    }
+  ],
+  "timestamp": "2026-08-05T09:05:45.145709+00:00"
+}
