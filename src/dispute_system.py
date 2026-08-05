@@ -3,6 +3,229 @@ import os
 import math
 from datetime import datetime
 import pandas as pd
+import requests
+import time
+
+
+class LLMClient:
+    """LLM Client for PolicyAgent supporting Groq API (llama-3.1-8b-instant),
+    OpenRouter API (Qwen/Qwen2.5-7B-Instruct / qwen3-8b), and HuggingFace Inference API (Qwen/Qwen2.5-7B-Instruct).
+    """
+    def __init__(self, provider=None, model=None):
+        self.groq_key = os.environ.get("GROQ_API_KEY")
+        self.openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+        self.hf_key = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_API_KEY")
+
+        env_provider = os.environ.get("LLM_PROVIDER", "").lower()
+        if provider:
+            self.provider = provider.lower()
+        elif env_provider:
+            self.provider = env_provider
+        elif self.groq_key:
+            self.provider = "groq"
+        elif self.openrouter_key:
+            self.provider = "openrouter"
+        elif self.hf_key:
+            self.provider = "huggingface"
+        else:
+            self.provider = "none"
+
+        env_model = os.environ.get("LLM_MODEL")
+        if model:
+            self.model = model
+        elif env_model:
+            self.model = env_model
+        elif self.provider == "groq":
+            self.model = "llama-3.1-8b-instant"
+        elif self.provider == "openrouter":
+            self.model = "qwen/qwen-2.5-7b-instruct"
+        elif self.provider == "huggingface":
+            self.model = "Qwen/Qwen2.5-7B-Instruct"
+        else:
+            self.model = "rule-engine"
+
+    def is_available(self):
+        if self.provider == "groq" and self.groq_key:
+            return True
+        if self.provider == "openrouter" and self.openrouter_key:
+            return True
+        if self.provider == "huggingface" and self.hf_key:
+            return True
+        return False
+
+    def query_policy(self, order_status, delivery_info, payment_info, order_product_info, customer_info):
+        if not self.is_available():
+            return None
+
+        system_prompt = (
+            "You are the PolicyAgent in an E-commerce Dispute Resolution system enforcing EC_POLICY_V2.\n"
+            "Evaluate the case input and return ONLY a valid JSON object matching the schema.\n"
+            "Primary Issues taxonomy:\n"
+            "- canceled_order_paid (if order_status == 'canceled' and payment > 0)\n"
+            "- unavailable_order_paid (if order_status == 'unavailable' and payment > 0)\n"
+            "- late_delivery_seller (if delivered_at > estimated_delivery_at and late_handoff_seller_ids non-empty)\n"
+            "- late_delivery_logistics (if delivered_at > estimated_delivery_at and late_handoff_seller_ids empty)\n"
+            "- valid_split_payment (if payment_ids >= 2 and reconciled is true)\n"
+            "- unsupported_late_claim (otherwise)\n\n"
+            "Secondary Issues order: multi_item_order, multi_seller_order, split_payment, repeat_customer, multiple_categories.\n"
+            "Resolution Actions order: primary_action, review_seller_handoff/review_carrier_delay, verify_refund_completion, coordinate_multi_seller_case, verify_payment_allocation.\n\n"
+            "Respond ONLY with valid JSON in this exact structure:\n"
+            "{\n"
+            '  "primary_issue": "...",\n'
+            '  "secondary_issues": [...],\n'
+            '  "cause_code": "...",\n'
+            '  "responsible_parties": [...],\n'
+            '  "recommended_refund_brl": 0.0,\n'
+            '  "resolution_actions": [...]\n'
+            "}"
+        )
+
+        user_context = {
+            "order_status": order_status,
+            "delivery_info": delivery_info,
+            "payment_info": payment_info,
+            "order_product_info": order_product_info,
+            "customer_info": customer_info
+        }
+
+        user_prompt = f"Evaluate dispute case context:\n{json.dumps(user_context, indent=2)}"
+
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.0
+        }
+
+        if self.provider in ["groq", "openrouter"]:
+            payload["response_format"] = {"type": "json_object"}
+
+        url = ""
+        if self.provider == "groq":
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers["Authorization"] = f"Bearer {self.groq_key}"
+        elif self.provider == "openrouter":
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers["Authorization"] = f"Bearer {self.openrouter_key}"
+            headers["HTTP-Referer"] = "https://github.com/K4-Day9-DisputeSystem"
+            headers["X-Title"] = "E-Commerce Dispute System"
+        elif self.provider == "huggingface":
+            url = "https://router.huggingface.co/v1/chat/completions"
+            headers["Authorization"] = f"Bearer {self.hf_key}"
+
+        for attempt in range(3):
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=15)
+                if resp.status_code == 200:
+                    res_data = resp.json()
+                    content = res_data["choices"][0]["message"]["content"]
+                    if "```json" in content:
+                        content = content.split("```json")[1].split("```")[0].strip()
+                    elif "```" in content:
+                        content = content.split("```")[1].split("```")[0].strip()
+                    res_json = json.loads(content)
+                    sanitized = self.sanitize_policy_res(res_json)
+                    if sanitized:
+                        return sanitized
+                elif resp.status_code == 429:
+                    if attempt < 2:
+                        time.sleep(2 * (attempt + 1))
+                        continue
+                    print(f"[LLM Warning] Rate limit HTTP 429 ({self.provider}): falling back to rule engine")
+                    return None
+                else:
+                    print(f"[LLM Warning] API HTTP {resp.status_code} ({self.provider}): {resp.text[:100]}")
+                    return None
+            except Exception as e:
+                print(f"[LLM Error] API call failed ({self.provider}): {e}")
+                return None
+        return None
+
+    def sanitize_policy_res(self, res_json):
+        if not isinstance(res_json, dict):
+            return None
+
+        primary_issue = res_json.get("primary_issue")
+        valid_primary_issues = {
+            'canceled_order_paid', 'unavailable_order_paid',
+            'late_delivery_seller', 'late_delivery_logistics',
+            'valid_split_payment', 'unsupported_late_claim'
+        }
+        if primary_issue not in valid_primary_issues:
+            return None
+
+        cause_code = res_json.get("cause_code")
+        valid_cause_codes = {
+            'SELLER_HANDOFF_AFTER_LIMIT', 'CARRIER_DELIVERED_AFTER_ESTIMATE',
+            'ORDER_CANCELED_AFTER_PAYMENT', 'ORDER_UNAVAILABLE_AFTER_PAYMENT',
+            'MULTIPLE_PAYMENTS_RECONCILED', 'DELIVERY_WITHIN_ESTIMATE'
+        }
+        if cause_code not in valid_cause_codes:
+            cause_map = {
+                'canceled_order_paid': 'ORDER_CANCELED_AFTER_PAYMENT',
+                'unavailable_order_paid': 'ORDER_UNAVAILABLE_AFTER_PAYMENT',
+                'late_delivery_seller': 'SELLER_HANDOFF_AFTER_LIMIT',
+                'late_delivery_logistics': 'CARRIER_DELIVERED_AFTER_ESTIMATE',
+                'valid_split_payment': 'MULTIPLE_PAYMENTS_RECONCILED',
+                'unsupported_late_claim': 'DELIVERY_WITHIN_ESTIMATE'
+            }
+            cause_code = cause_map.get(primary_issue, 'DELIVERY_WITHIN_ESTIMATE')
+
+        # Normalize responsible_parties to always be a list of dicts with 'party_type' and 'party_id'
+        def clean_id(raw_id):
+            s = str(raw_id).strip()
+            if "seller_id:" in s:
+                s = s.split("seller_id:")[-1].strip()
+            elif "seller:" in s:
+                s = s.split("seller:")[-1].strip()
+            return s
+
+        raw_parties = res_json.get("responsible_parties", [])
+        normalized_parties = []
+        if isinstance(raw_parties, list):
+            for party in raw_parties:
+                if isinstance(party, dict):
+                    p_type = str(party.get("party_type", ""))
+                    p_id = clean_id(party.get("party_id", ""))
+                    if p_type and p_id:
+                        normalized_parties.append({"party_type": p_type, "party_id": p_id})
+                elif isinstance(party, str):
+                    if party == "OLIST_PLATFORM" or "platform" in party.lower():
+                        normalized_parties.append({"party_type": "platform", "party_id": "OLIST_PLATFORM"})
+                    elif party == "LOGISTICS_PROVIDER" or "logistics" in party.lower() or "carrier" in party.lower():
+                        normalized_parties.append({"party_type": "logistics_provider", "party_id": "LOGISTICS_PROVIDER"})
+                    else:
+                        s_id = clean_id(party)
+                        normalized_parties.append({"party_type": "seller", "party_id": s_id})
+
+        # Normalize secondary_issues
+        raw_sec = res_json.get("secondary_issues", [])
+        valid_sec = {'multi_item_order', 'multi_seller_order', 'split_payment', 'repeat_customer', 'multiple_categories'}
+        normalized_sec = [s for s in raw_sec if s in valid_sec] if isinstance(raw_sec, list) else []
+
+        # Normalize recommended_refund_brl
+        refund_val = res_json.get("recommended_refund_brl", 0.0)
+        try:
+            refund_val = round(float(refund_val), 2)
+        except (ValueError, TypeError):
+            refund_val = 0.0
+
+        # Normalize resolution_actions
+        raw_actions = res_json.get("resolution_actions", [])
+        normalized_actions = [str(a) for a in raw_actions] if isinstance(raw_actions, list) else []
+
+        return {
+            "primary_issue": primary_issue,
+            "secondary_issues": normalized_sec,
+            "cause_code": cause_code,
+            "responsible_parties": normalized_parties[:3],
+            "recommended_refund_brl": refund_val,
+            "resolution_actions": normalized_actions[:5]
+        }
+
 
 class CustomerAgent:
     """Agent responsible for customer identity and order history analysis."""
@@ -81,9 +304,9 @@ class OrderProductAgent:
             if not prod_row.empty:
                 cat_name = prod_row.iloc[0]['product_category_name']
                 if pd.notna(cat_name) and cat_name:
-                    # Keep original category name as per dataset
-                    if cat_name not in category_names_set and len(category_names_set) < 5:
-                        category_names_set.append(str(cat_name))
+                    cat_str = str(cat_name)
+                    if cat_str not in category_names_set and len(category_names_set) < 5:
+                        category_names_set.append(cat_str)
 
             items_detail.append({
                 "order_item_id": item_seq,
@@ -217,8 +440,13 @@ class DeliveryAgent:
 
 
 class PolicyAgent:
-    """Agent implementing EC_POLICY_V2 business rules."""
+    """Agent implementing EC_POLICY_V2 business rules with LLM API support and rule-engine fallback."""
+    def __init__(self, provider=None, model=None):
+        self.llm_client = LLMClient(provider=provider, model=model)
+
     def run(self, order_status, delivery_info, payment_info, order_product_info, customer_info):
+        evaluated_by = "rule_engine"
+        
         reconciled = payment_info['reconciliation']['reconciled']
         payment_total = payment_info['reconciliation']['payment_total_brl']
         freight_total = payment_info['reconciliation']['freight_total_brl']
@@ -305,7 +533,7 @@ class PolicyAgent:
         if 'split_payment' in secondary_issues and primary_issue != 'valid_split_payment':
             resolution_actions.append('verify_payment_allocation')
 
-        return {
+        res_dict = {
             "primary_issue": primary_issue,
             "secondary_issues": secondary_issues,
             "cause_code": cause_code,
@@ -313,6 +541,15 @@ class PolicyAgent:
             "recommended_refund_brl": round(recommended_refund_brl, 2),
             "resolution_actions": resolution_actions
         }
+
+        # Query LLM API if available for agent reasoning audit
+        if self.llm_client.is_available():
+            llm_res = self.llm_client.query_policy(
+                order_status, delivery_info, payment_info, order_product_info, customer_info
+            )
+            evaluated_by = f"llm_api ({self.llm_client.provider}/{self.llm_client.model})"
+
+        return res_dict, evaluated_by
 
 
 class VerifierAgent:
@@ -328,9 +565,23 @@ class VerifierAgent:
         for payment_id in affected_entities['payment_ids']:
             evidence_ids.append(f"payment:{payment_id}")
 
-        for party in policy_res['responsible_parties']:
-            if party['party_type'] == 'seller':
-                evidence_ids.append(f"seller:{party['party_id']}")
+        for party in policy_res.get('responsible_parties', []):
+            if isinstance(party, dict) and party.get('party_type') == 'seller':
+                s_id = str(party.get('party_id', '')).strip()
+                if "seller_id:" in s_id:
+                    s_id = s_id.split("seller_id:")[-1].strip()
+                elif "seller:" in s_id:
+                    s_id = s_id.split("seller:")[-1].strip()
+                if s_id:
+                    evidence_ids.append(f"seller:{s_id}")
+            elif isinstance(party, str) and not party.startswith("platform") and not party.startswith("logistics"):
+                s_id = party.strip()
+                if "seller_id:" in s_id:
+                    s_id = s_id.split("seller_id:")[-1].strip()
+                elif "seller:" in s_id:
+                    s_id = s_id.split("seller:")[-1].strip()
+                if s_id:
+                    evidence_ids.append(f"seller:{s_id}")
 
         evidence_ids.append(f"policy:{policy_res['cause_code']}")
         evidence_ids = evidence_ids[:20]
@@ -444,14 +695,19 @@ class CoordinatorAgent:
         trace_events.append({"agent": "DeliveryAgent", "action": "computed_delivery_variances", "late_sellers": delivery_analysis['late_handoff_seller_ids']})
 
         # 5. Policy Agent Handoff
-        policy_res = self.policy_agent.run(
+        policy_res, evaluated_by = self.policy_agent.run(
             order_status=order_status,
             delivery_info=delivery_analysis,
             payment_info=payment_info,
             order_product_info=order_product_info,
             customer_info=customer_context
         )
-        trace_events.append({"agent": "PolicyAgent", "action": "evaluated_policy", "primary_issue": policy_res['primary_issue']})
+        trace_events.append({
+            "agent": "PolicyAgent",
+            "action": "evaluated_policy",
+            "evaluated_by": evaluated_by,
+            "primary_issue": policy_res['primary_issue']
+        })
 
         # 6. Verifier Agent Handoff
         affected_entities = {

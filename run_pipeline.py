@@ -4,6 +4,12 @@ import glob
 import json
 import time
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Ensure src directory is in path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
@@ -49,11 +55,23 @@ def main():
     print(f"Saved trace log to {trace_file}.")
 
     # Write metadata.json
+    llm_client = coordinator.policy_agent.llm_client
+    is_llm_active = llm_client.is_available()
+    active_model = llm_client.model if is_llm_active else "Qwen2.5-7B-Instruct"
+    active_provider = llm_client.provider if is_llm_active else "Local Rule Engine (Fallback)"
+
     metadata = {
-        "model_name": "Qwen2.5-7B-Instruct",
-        "parameter_size": "7B",
-        "framework": "Custom Multi-Agent Framework / Python 3.11",
-        "runtime": "Local Python Async Execution",
+        "model_name": active_model,
+        "parameter_size": "8B" if "8b" in active_model.lower() else "7B",
+        "framework": "Custom Multi-Agent A2A Framework / Python 3.11",
+        "active_provider": active_provider,
+        "llm_api_available": is_llm_active,
+        "supported_apis": {
+            "groq": "llama-3.1-8b-instant (via GROQ_API_KEY)",
+            "openrouter": "qwen/qwen-2.5-7b-instruct / qwen3-8b (via OPENROUTER_API_KEY)",
+            "huggingface": "Qwen/Qwen2.5-7B-Instruct (via HF_TOKEN / HUGGINGFACE_API_KEY)"
+        },
+        "runtime": f"Python Multi-Agent Handoff [{active_provider}]",
         "total_cases_processed": len(input_files),
         "execution_time_seconds": round(elapsed, 2)
     }

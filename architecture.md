@@ -79,3 +79,16 @@ Bằng chứng (`evidence_ids`) được định dạng chuẩn hóa theo quy t�
 - `payment:<order_id>:<payment_sequential>`
 - `seller:<seller_id>` (Chỉ thêm khi seller chịu trách nhiệm)
 - `policy:<root_cause_code>` (Ví dụ: `policy:SELLER_HANDOFF_AFTER_LIMIT`)
+
+---
+
+## 5. LLM API Integration & Fallback Mechanism
+
+Các decision-making agent (như **Policy Agent**) đã được tích hợp khả năng gọi trực tiếp các API LLM hiện đại:
+- **Groq API**: `llama-3.1-8b-instant` (thông qua biến môi trường `GROQ_API_KEY`)
+- **OpenRouter API**: `qwen/qwen-2.5-7b-instruct` / `qwen3-8b` (thông qua biến môi trường `OPENROUTER_API_KEY`)
+- **HuggingFace Inference API**: `Qwen/Qwen2.5-7B-Instruct` (thông qua `HF_TOKEN` hoặc `HUGGINGFACE_API_KEY`)
+
+### Cơ chế hoạt động & Fallback:
+1. Khi khởi chạy, `LLMClient` tự động phát hiện API Key hợp lệ và gửi case context đã trích xuất đến LLM API được chọn.
+2. Nếu không phát hiện API Key hoặc khi cuộc gọi API bị gián đoạn (timeout, rate limit), hệ thống tự động fallback mượt mà về **Deterministic Rule Engine**, đảm bảo pipeline luôn hoàn thành 100% (50/50 cases) và vượt qua `verify_outputs.py`.

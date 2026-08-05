@@ -55,7 +55,7 @@ Bài toán yêu cầu điều tra 50 khiếu nại của khách hàng từ dữ 
   - `OrderProductAgent`: Phân tích items, sellers, products và category.
   - `PaymentAgent`: Tính toán tổng tiền hàng, freight, tổng thanh toán và đối soát (`reconciled` khi chênh lệch $\le 0.10$ BRL).
   - `DeliveryAgent`: Tính toán `delivery_variance_hours` và `handoff_variance_hours` của từng seller.
-  - `PolicyAgent`: Đánh giá quy tắc ưu tiên nguyên nhân chính/phụ, tính toán khoản hoàn tiền và giải pháp.
+  - `PolicyAgent`: Đánh giá quy tắc ưu tiên nguyên nhân chính/phụ, tính toán khoản hoàn tiền và giải pháp bằng cách hỗ trợ gọi API trực tiếp tới Groq API (`llama-3.1-8b-instant`), OpenRouter / HuggingFace Inference API (`Qwen/Qwen2.5-7B-Instruct` / `qwen3-8b`) kèm cơ chế deterministic rule fallback.
   - `VerifierAgent`: Đảm bảo schema, xử lý giá trị `null` cho đơn không có item và giới hạn độ dài mảng.
 
 ### Input, output và contract
