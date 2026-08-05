@@ -75,7 +75,6 @@ class OlistDB:
                         FROM orders o 
                         JOIN customers c ON o.customer_id = c.customer_id 
                         WHERE c.customer_unique_id = ? AND o.order_id != ?
-                        ORDER BY o.order_purchase_timestamp ASC
                     """, (c_unique_id, order_id))
                     related_order_ids = [r["order_id"] for r in self.cursor.fetchall()]
 
