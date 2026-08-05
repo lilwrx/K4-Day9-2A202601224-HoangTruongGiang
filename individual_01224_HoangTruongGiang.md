@@ -4,7 +4,7 @@
 
 | Thông tin       | Nội dung             |
 | --------------- | -------------------- |
-| Họ và tên       | Lưu Quang Linh       |
+| Họ và tên       | HoangTruongGiang       |
 | MSSV            | 2A202601224          |
 | Khóa/Lớp        | K4                   |
 | Vai trò chính   | Agent Architecture & Lead Developer |
