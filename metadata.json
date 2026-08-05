@@ -1,0 +1,8 @@
+{
+  "model_name": "Qwen2.5-7B-Instruct",
+  "parameter_size": "7B",
+  "framework": "Custom Multi-Agent Framework / Python 3.11",
+  "runtime": "Local Python Async Execution",
+  "total_cases_processed": 50,
+  "execution_time_seconds": 2.66
+}
