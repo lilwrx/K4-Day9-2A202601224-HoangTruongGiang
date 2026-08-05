@@ -1,0 +1,12 @@
+# Secret - khong bao gio commit
+.env
+
+# Moi truong ao
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# File nop bai (sinh lai duoc tu output/)
+output.zip

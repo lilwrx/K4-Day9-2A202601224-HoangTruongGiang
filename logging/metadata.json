@@ -1,0 +1,29 @@
+{
+  "model": "llama-3.1-8b-instant",
+  "provider": "groq",
+  "parameter_size": "8B",
+  "parameter_size_constraint": "<=10B",
+  "framework": "custom multi-agent orchestration (Python stdlib, no external deps)",
+  "runtime": {
+    "python": "3.14.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "total_seconds": 3.92,
+    "cases": 50
+  },
+  "policy_version": "EC_POLICY_V2",
+  "execution_mode": "rule_engine",
+  "agents": [
+    "coordinator",
+    "customer_agent",
+    "order_product_agent",
+    "payment_agent",
+    "delivery_agent",
+    "policy_agent",
+    "verifier_agent"
+  ],
+  "llm_settings": {
+    "temperature": 0.0,
+    "max_tokens": 900,
+    "response_format": "json_object"
+  }
+}
