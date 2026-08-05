@@ -1,0 +1,10 @@
+.env
+*.env
+output.zip
+models/
+*.safetensors
+*.bin
+__pycache__/
+*.pyc
+.vscode/
+.idea/

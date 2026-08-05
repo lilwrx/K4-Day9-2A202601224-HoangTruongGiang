@@ -4,8 +4,8 @@
 
 | Thông tin       | Nội dung                                            |
 | --------------- | --------------------------------------------------- |
-| Họ và tên       | [Hoàng Trường Giang]                                |
-| MSSV            | [2A202601224]                                       |
+| Họ và tên       | Hoàng Trường Giang                                  |
+| MSSV            | 2A202601224                                         |
 | Khóa/Lớp        | K4                                                  |
 | Vai trò chính   | Agent System Architect & Multi-Agent Orchestrator   |
 | Ngày hoàn thành | 2026-08-05                                          |
