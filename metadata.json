@@ -1,0 +1,6 @@
+{
+  "model": "gpt-4o-mini",
+  "parameter_size": "8B",
+  "framework": "LangChain / langchain-openai",
+  "runtime": "Python 3.11+"
+}

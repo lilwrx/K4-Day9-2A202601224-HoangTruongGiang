@@ -15,6 +15,29 @@ job once the orchestrator routes the decision to it.
 from __future__ import annotations
 
 from datetime import datetime
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from sub_agents import (
+        FullRefundPolicyAgent,
+        FreightRefundPolicyAgent,
+        SplitPaymentPolicyAgent,
+        LateClaimPolicyAgent,
+    )
+else:
+    from .sub_agents import (
+        FullRefundPolicyAgent,
+        FreightRefundPolicyAgent,
+        SplitPaymentPolicyAgent,
+        LateClaimPolicyAgent,
+    )
+
+_FULL_REFUND_AGENT = FullRefundPolicyAgent()
+_FREIGHT_REFUND_AGENT = FreightRefundPolicyAgent()
+_SPLIT_PAYMENT_AGENT = SplitPaymentPolicyAgent()
+_LATE_CLAIM_AGENT = LateClaimPolicyAgent()
 
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 RECONCILIATION_TOLERANCE_BRL = 0.10
@@ -166,35 +189,38 @@ def compute_delivery_analysis(bundle: dict) -> dict:
 
 
 def classify_primary_issue(bundle: dict, delivery: dict, payment: dict) -> tuple[str, float]:
-    """Returns (primary_issue, confidence). Rules are tried in the exact
-    priority order from EC_POLICY_V2.md; the first match wins."""
+    """Returns (primary_issue, confidence). Evaluated via modular policy sub-agents."""
     order = bundle["order"]
     status = order.get("order_status")
     payment_total = payment["payment_total_brl"]
+    freight_total = payment["freight_total_brl"]
+    delivery_variance_hours = delivery["delivery_variance_hours"]
+    late_seller_ids = delivery["late_handoff_seller_ids"]
+    num_payments = len(bundle["payments"])
+    reconciled = payment["reconciled"]
 
-    delivered_late = bool(
-        delivery["delivery_variance_hours"] is not None and delivery["delivery_variance_hours"] > 0
-    )
-    any_seller_late = len(delivery["late_handoff_seller_ids"]) > 0
+    # 1. Full Refund Sub-Agent (canceled_order_paid, unavailable_order_paid)
+    full_res = _FULL_REFUND_AGENT.evaluate(status, payment_total)
+    if full_res:
+        return full_res["primary_issue"], full_res["confidence"]
 
-    if status == "canceled" and payment_total > 0:
-        return "canceled_order_paid", 0.95
-    if status == "unavailable" and payment_total > 0:
-        return "unavailable_order_paid", 0.95
-    if delivered_late and any_seller_late:
-        return "late_delivery_seller", 0.9
-    if delivered_late and not any_seller_late:
-        return "late_delivery_logistics", 0.85
-    if len(bundle["payments"]) >= 2 and payment["reconciled"]:
-        return "valid_split_payment", 0.9
-    if not delivered_late and payment["reconciled"]:
-        return "unsupported_late_claim", 0.9
+    # 2. Freight Refund Sub-Agent (late_delivery_seller, late_delivery_logistics)
+    freight_res = _FREIGHT_REFUND_AGENT.evaluate(delivery_variance_hours, late_seller_ids, freight_total)
+    if freight_res:
+        return freight_res["primary_issue"], freight_res["confidence"]
 
-    # Data doesn't cleanly satisfy any rule (e.g. no item rows and the
-    # order isn't canceled/unavailable/late) — default to the "no
-    # actionable claim" bucket rather than fabricate a refund, but flag it
-    # with reduced confidence since no rule condition was actually met.
+    # 3. Split Payment Sub-Agent (valid_split_payment)
+    split_res = _SPLIT_PAYMENT_AGENT.evaluate(num_payments, reconciled)
+    if split_res:
+        return split_res["primary_issue"], split_res["confidence"]
+
+    # 4. Late Claim Sub-Agent (unsupported_late_claim)
+    late_res = _LATE_CLAIM_AGENT.evaluate(delivery_variance_hours, reconciled)
+    if late_res:
+        return late_res["primary_issue"], late_res["confidence"]
+
     return "unsupported_late_claim", 0.4
+
 
 
 # --- secondary issues ----------------------------------------------------------

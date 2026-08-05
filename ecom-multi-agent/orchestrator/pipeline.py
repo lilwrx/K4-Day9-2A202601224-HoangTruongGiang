@@ -1,24 +1,18 @@
 """
-Orchestrator: the routing agent. For each input/EC_*.json case it drives
-the full handoff chain —
+Orchestrator: The LLM-routed coordinator pipeline. For each input/EC_*.json case,
+it drives the tool-calling handoff chain via LLM routing:
 
-    data_agent -> policy_agent -> execution_agent (refund/payment/logistics)
+    fetch_order_data -> run_policy_assessment -> dispatch_resolution_actions
     -> verifier -> output/EC_*.json
 
-— and records every step to logging/trace.jsonl. It contains no business
-logic of its own: data_agent owns "what happened", policy_agent owns "what
-that means under EC_POLICY_V2", execution_agent owns "who acts on it", and
-verifier owns "is this safe to write". The orchestrator only sequences
-those calls and decides routing (which execution agent handles which
-action — delegated to ExecutionRouter — and what to do when verification
-fails).
+All trace events are recorded to logging/trace.jsonl. The verifier gate and file writing
+run unconditionally in Python after tool routing completes.
 """
 
 from __future__ import annotations
 
 import json
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -26,15 +20,11 @@ _ECOM_MULTI_AGENT_ROOT = str(Path(__file__).resolve().parents[1])
 if _ECOM_MULTI_AGENT_ROOT not in sys.path:
     sys.path.insert(0, _ECOM_MULTI_AGENT_ROOT)
 
-from data_agent.agent import DataAgent  # noqa: E402
-from execution_agent import ExecutionRouter  # noqa: E402
-from policy_agent.agent import PolicyAgent  # noqa: E402
-
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from verifier import validate  # noqa: E402
+    from agent import LLMOrchestrator  # noqa: E402
 else:
-    from .verifier import validate
+    from .agent import LLMOrchestrator
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_DIR = REPO_ROOT / "input"
@@ -48,9 +38,7 @@ def _truncate(text: str, limit: int = 160) -> str:
 
 
 class TraceLogger:
-    """Collects trace events in memory and writes them as JSONL, one object
-    per line, matching the {timestamp, agent_id, action, input_summary,
-    output_summary, status, latency_ms} shape used elsewhere in this repo."""
+    """Collects trace events in memory and writes them as JSONL."""
 
     def __init__(self):
         self._events: list[dict] = []
@@ -78,6 +66,21 @@ class TraceLogger:
             }
         )
 
+    def add_events(self, events: list[dict]) -> None:
+        for event in events:
+            self._events.append(
+                {
+                    "timestamp": datetime.now().strftime("%H:%M:%S"),
+                    "case_id": event["case_id"],
+                    "agent_id": event["agent_id"],
+                    "action": event["action"],
+                    "input_summary": _truncate(event["input_summary"]),
+                    "output_summary": _truncate(event["output_summary"]),
+                    "status": event["status"],
+                    "latency_ms": round(event.get("latency_ms", 0.0), 2),
+                }
+            )
+
     def write(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
@@ -86,77 +89,15 @@ class TraceLogger:
 
 
 class Orchestrator:
+    """Wrapper around LLMOrchestrator that handles running individual cases and all cases."""
+
     def __init__(self):
-        # One DataStore/DataAgent shared across every case and every
-        # downstream agent, so the CSVs are only loaded once per run.
-        self.data_agent = DataAgent()
-        self.policy_agent = PolicyAgent(data_agent=self.data_agent)
-        self.execution_router = ExecutionRouter()
+        self.llm_orchestrator = LLMOrchestrator()
         self.trace = TraceLogger()
 
     def run_case(self, case: dict) -> dict:
-        case_id = case["case_id"]
-        order_id = case["customer_request"]["claimed_order_id"]
-
-        t0 = time.perf_counter()
-        bundle = self.data_agent.investigate(order_id)
-        self.trace.log(
-            case_id,
-            "data_agent",
-            "fetch_order_bundle",
-            f"order_id={order_id}",
-            f"found={bundle.get('found')}",
-            "ok" if bundle.get("found") else "error",
-            (time.perf_counter() - t0) * 1000,
-        )
-
-        if not bundle.get("found"):
-            result = {"case_id": case_id, "error": f"claimed_order_id {order_id!r} not found"}
-            return result
-
-        t0 = time.perf_counter()
-        assessment = self.policy_agent.assess_from_bundle(case_id, bundle)
-        ca = assessment["case_assessment"]
-        self.trace.log(
-            case_id,
-            "policy_agent",
-            "assess",
-            f"order_id={order_id}",
-            f"primary_issue={ca['primary_issue']} case_status={ca['case_status']}",
-            "ok",
-            (time.perf_counter() - t0) * 1000,
-        )
-
-        t0 = time.perf_counter()
-        execution_results = self.execution_router.execute(assessment)
-        self.trace.log(
-            case_id,
-            "execution_router",
-            "route_actions",
-            f"resolution_actions={assessment['resolution_actions']}",
-            f"{len(execution_results)} action(s) dispatched",
-            "ok",
-            (time.perf_counter() - t0) * 1000,
-        )
-        for result in execution_results:
-            self.trace.log(
-                case_id, result.agent_id, result.action, order_id, result.detail, result.status, 0.0
-            )
-
-        t0 = time.perf_counter()
-        ok, problems = validate(assessment)
-        self.trace.log(
-            case_id,
-            "verifier",
-            "validate",
-            f"primary_issue={ca['primary_issue']}",
-            "ok" if ok else f"{len(problems)} problem(s): {problems}",
-            "ok" if ok else "error",
-            (time.perf_counter() - t0) * 1000,
-        )
-        if not ok:
-            assessment["_verifier_problems"] = problems
-
+        assessment, trace_logs = self.llm_orchestrator.run_case(case)
+        self.trace.add_events(trace_logs)
         return assessment
 
     def run_all(
